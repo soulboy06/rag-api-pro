@@ -1,0 +1,47 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python environments and generated files
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local runtime data
+backups/
+logs/
+workspace/
+*.log
+
+# Local frontend output and dependencies
+frontend/node_modules/
+frontend/dist/
+
+# Internal test/benchmark material is kept locally, not published
+tests/
+scripts/test_*.py
+scripts/run_benchmark.py
+scripts/run_gate0_e2e.py
+benchmark_report_level8.md
+
+# Internal planning notes
+docs/superpowers/
+.github/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
