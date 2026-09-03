@@ -120,8 +120,18 @@ export class ApiClient {
       body: formData,
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Upload failed');
+      let errorMsg = `Upload failed (HTTP ${res.status})`;
+      try {
+        const err = await res.json();
+        errorMsg = err.message || err.detail || errorMsg;
+      } catch {
+        if (res.status === 413) {
+          errorMsg = '文件过大，超出了服务器上传限制(413)';
+        } else if (res.status === 502 || res.status === 504) {
+          errorMsg = '网关超时或后端服务不可用(502/504)';
+        }
+      }
+      throw new Error(errorMsg);
     }
     return res.json();
   }

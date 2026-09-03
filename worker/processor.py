@@ -199,6 +199,8 @@ class DocumentProcessor:
                 "page_count": parse_result.page_count,
             }
             page_numbers = cls.extract_page_numbers(p_chunk.content)
+            if not page_numbers and p_chunk.metadata and p_chunk.metadata.get("page_number"):
+                page_numbers = p_chunk.metadata.get("page_numbers") or [p_chunk.metadata["page_number"]]
             if page_numbers:
                 payload["page_numbers"] = page_numbers
                 payload["page_number"] = page_numbers[0]

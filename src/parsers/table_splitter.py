@@ -33,6 +33,7 @@ class TableAwareSplitter:
     
     HTML_TABLE_PATTERN = re.compile(r"(<table[\s\S]*?</table>)", re.IGNORECASE)
     HEADING_PATTERN = re.compile(r"^(#{1,6}\s+.+)$", re.MULTILINE)
+    PAGE_PATTERN = re.compile(r"<!--\s*Page\s+(\d+)\s*-->", re.IGNORECASE)
 
     @classmethod
     def split_document(
@@ -50,14 +51,23 @@ class TableAwareSplitter:
         # 1. Split text into segments: tables and non-table text blocks
         parts = cls.HTML_TABLE_PATTERN.split(text)
         current_heading = "文档正文"
+        current_page: Optional[int] = None
 
         for part in parts:
             if not part.strip():
                 continue
+
+            # Update current page if this part contains page markers
+            page_matches = cls.PAGE_PATTERN.findall(part)
+            if page_matches:
+                current_page = int(page_matches[-1])
             
             # Check if this part is an HTML table
             if part.strip().lower().startswith("<table") and part.strip().lower().endswith("</table>"):
                 table_chunk = cls._process_table_chunk(part.strip(), current_heading)
+                if current_page:
+                    table_chunk.metadata["page_number"] = current_page
+                    table_chunk.metadata["page_numbers"] = [current_page]
                 chunks.append(table_chunk)
             else:
                 # Track latest section heading in non-table text
@@ -65,8 +75,10 @@ class TableAwareSplitter:
                 if headings:
                     current_heading = headings[-1].strip()
                 
-                # Split regular text paragraphs
-                text_chunks = cls._split_text_block(part.strip(), current_heading, target_chunk_size, chunk_overlap)
+                # Split regular text paragraphs while carrying current_page
+                text_chunks, current_page = cls._split_text_block(
+                    part.strip(), current_heading, target_chunk_size, chunk_overlap, current_page
+                )
                 chunks.extend(text_chunks)
 
         return chunks
@@ -83,11 +95,12 @@ class TableAwareSplitter:
         text: str,
         current_heading: str,
         chunk_size: int,
-        overlap: int
-    ) -> List[ProcessedChunk]:
-        """Splits narrative text by paragraphs or sentence boundaries."""
+        overlap: int,
+        current_page: Optional[int] = None
+    ) -> Tuple[List[ProcessedChunk], Optional[int]]:
+        """Splits narrative text by paragraphs or sentence boundaries with page inheritance."""
         if not text:
-            return []
+            return [], current_page
 
         paragraphs = text.split("\n\n")
         chunks: List[ProcessedChunk] = []
@@ -99,14 +112,26 @@ class TableAwareSplitter:
             if not p:
                 continue
 
+            # Update page tracking if paragraph has page marker
+            p_pages = cls.PAGE_PATTERN.findall(p)
+            if p_pages:
+                current_page = int(p_pages[-1])
+
             if current_len + len(p) > chunk_size and current_buf:
                 chunk_str = "\n\n".join(current_buf).strip()
                 if chunk_str:
+                    chunk_pages = [int(x) for x in cls.PAGE_PATTERN.findall(chunk_str)]
+                    if not chunk_pages and current_page:
+                        chunk_pages = [current_page]
                     chunks.append(ProcessedChunk(
                         content=chunk_str,
                         is_table=False,
                         table_title=current_heading,
-                        metadata={"heading": current_heading}
+                        metadata={
+                            "heading": current_heading,
+                            "page_number": chunk_pages[0] if chunk_pages else None,
+                            "page_numbers": chunk_pages
+                        }
                     ))
                 
                 # Retain overlap from the last paragraph if possible
@@ -124,11 +149,18 @@ class TableAwareSplitter:
         if current_buf:
             chunk_str = "\n\n".join(current_buf).strip()
             if chunk_str:
+                chunk_pages = [int(x) for x in cls.PAGE_PATTERN.findall(chunk_str)]
+                if not chunk_pages and current_page:
+                    chunk_pages = [current_page]
                 chunks.append(ProcessedChunk(
                     content=chunk_str,
                     is_table=False,
                     table_title=current_heading,
-                    metadata={"heading": current_heading}
+                    metadata={
+                        "heading": current_heading,
+                        "page_number": chunk_pages[0] if chunk_pages else None,
+                        "page_numbers": chunk_pages
+                    }
                 ))
 
-        return chunks
+        return chunks, current_page

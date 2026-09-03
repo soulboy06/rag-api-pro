@@ -412,6 +412,7 @@ class GraphRAGEngine:
                     chunk_index=orig.chunk_index,
                     content=orig.content,
                     score=round(display_score, 4),
+                    page_number=orig.page_number,
                     metadata=orig.metadata
                 )
             )
@@ -441,18 +442,32 @@ class GraphRAGEngine:
             overlap = sum(1 for keyword in keywords if keyword.lower() in content)
             phrase_bonus = 0.15 if query.strip().lower() in content else 0.0
             rerank_score = min(0.99, source.score * 0.75 + overlap / max(1, len(keywords)) * 0.2 + phrase_bonus)
-            ranked.append((rerank_score, source))
 
-        ranked.sort(key=lambda item: item[0], reverse=True)
-        return [
-            SourceChunk(
+            # Smart Page Pinning: if a chunk spans multiple pages, pin the exact page where the matching keywords appear
+            best_page = source.page_number
+            if source.content:
+                parts = re.split(r"<!--\s*Page\s+(\d+)\s*-->", source.content, flags=re.IGNORECASE)
+                if len(parts) >= 3:
+                    max_score = 0
+                    for i in range(1, len(parts), 2):
+                        p_num = int(parts[i])
+                        sec_text = parts[i + 1].lower()
+                        page_hits = sum(len(kw) for kw in keywords if kw.lower() in sec_text and len(kw) >= 2)
+                        if query.strip().lower() in sec_text:
+                            page_hits += 50
+                        if page_hits > max_score:
+                            max_score = page_hits
+                            best_page = p_num
+
+            ranked.append((rerank_score, SourceChunk(
                 doc_id=source.doc_id,
                 filename=source.filename,
                 chunk_index=source.chunk_index,
                 content=source.content,
-                score=round(score, 4),
-                page_number=source.page_number,
+                score=round(rerank_score, 4),
+                page_number=best_page,
                 metadata=source.metadata,
-            )
-            for score, source in ranked[:top_k]
-        ]
+            )))
+
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        return [source for _, source in ranked[:top_k]]

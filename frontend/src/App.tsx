@@ -16,7 +16,6 @@ import {
   Copy,
   Zap,
   Globe,
-  Radio,
   RefreshCw,
   CheckCircle2,
   FileCheck,
@@ -509,11 +508,10 @@ export default function App() {
             <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
               <div className="segmented-control">
                 {[
-                  { id: 'hybrid', label: 'Hybrid 双路', icon: Layers },
+                  { id: 'hybrid', label: 'Mix 全能', icon: Layers },
                   { id: 'naive', label: '向量检索', icon: FileText },
                   { id: 'local', label: '子图检索', icon: Cpu },
                   { id: 'global', label: '全局摘要', icon: Globe },
-                  { id: 'mix', label: 'Mix 全能', icon: Radio },
                 ].map(m => (
                   <button
                     key={m.id}
@@ -577,8 +575,19 @@ export default function App() {
                         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>引用依据与相关度:</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {msg.sources.map((s: any, sIdx: number) => (
-                            <span key={sIdx} className="pill pill-default" style={{ fontSize: 11, background: '#f8fafc' }}>
-                              {s.filename} <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{(s.score * 100).toFixed(0)}%</span>
+                            <span 
+                              key={sIdx} 
+                              className="pill pill-default" 
+                              style={{ fontSize: 11, background: '#f8fafc', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                              title={`切片 #${s.chunk_index}${s.page_number ? ` (第 ${s.page_number} 页)` : ''}\n相关度: ${(s.score * 100).toFixed(1)}%`}
+                            >
+                              <span>{s.filename}</span>
+                              {s.page_number && (
+                                <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '1px 5px', borderRadius: 4, fontWeight: 700, fontSize: 10 }}>
+                                  第{s.page_number}页
+                                </span>
+                              )}
+                              <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{(s.score * 100).toFixed(0)}%</span>
                             </span>
                           ))}
                         </div>

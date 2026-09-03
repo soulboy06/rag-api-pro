@@ -205,7 +205,8 @@ class RAGService:
                 tenant_id, kb_id, query_vec, top_k, score_threshold, active_generations
             )
             for c in sources:
-                context_parts.append(f"[{c.filename}#chunk_{c.chunk_index}]: {c.content}")
+                page_str = f" (第{c.page_number}页)" if c.page_number else ""
+                context_parts.append(f"[{c.filename}{page_str}#chunk_{c.chunk_index}]: {c.content}")
 
         # 2. LOCAL: Graph Subgraph Neighborhood Traversal Only
         elif mode == "local":
@@ -248,7 +249,8 @@ class RAGService:
             )
             sources = GraphRAGEngine.rerank_sources(sources, query, top_k)
             for c in sources:
-                context_parts.append(f"[{c.filename}#chunk_{c.chunk_index}]: {c.content}")
+                page_str = f" (第{c.page_number}页)" if c.page_number else ""
+                context_parts.append(f"[{c.filename}{page_str}#chunk_{c.chunk_index}]: {c.content}")
             if relations:
                 context_parts.append("【局部实体关系子图】:\n" + "\n".join(relations))
 
@@ -281,7 +283,8 @@ class RAGService:
             )
             sources = GraphRAGEngine.rerank_sources(sources, query, top_k)
             for c in sources:
-                context_parts.append(f"[{c.filename}#chunk_{c.chunk_index}]: {c.content}")
+                page_str = f" (第{c.page_number}页)" if c.page_number else ""
+                context_parts.append(f"[{c.filename}{page_str}#chunk_{c.chunk_index}]: {c.content}")
             if relations:
                 context_parts.append("【局部实体关系子图】:\n" + "\n".join(relations))
             if communities:
