@@ -145,7 +145,7 @@ class GraphRAGEngine:
             score_val = getattr(point, "score", 1.0) or 1.0
             if score_val >= score_threshold:
                 sources.append(cls._source_from_payload(payload, score_val))
-        return sources
+        return sources[:top_k]
 
     @classmethod
     async def retrieve_sparse_keyword_chunks(

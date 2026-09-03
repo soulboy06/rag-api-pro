@@ -62,6 +62,8 @@ class DocumentProcessor:
             r"([A-Za-z0-9\u4e00-\u9fa5]{2,15})\s*(?:是|属于|is a|is an)\s*([A-Za-z0-9\u4e00-\u9fa5]{2,20})",
             r"([A-Za-z0-9\u4e00-\u9fa5]{2,15})\s*(?:包含|包括|includes|contains)\s*([A-Za-z0-9\u4e00-\u9fa5]{2,20})",
             r"([A-Za-z0-9\u4e00-\u9fa5]{2,15})\s*(?:支持|provides|supports)\s*([A-Za-z0-9\u4e00-\u9fa5]{2,20})",
+            r"([A-Za-z0-9\u4e00-\u9fa5]{2,25})\s*(?:版权所有|运营方|出品方|开发商)[：:]\s*([A-Za-z0-9\u4e00-\u9fa5（）()]{2,30})",
+            r"([A-Za-z0-9\u4e00-\u9fa5]{2,20})\s*(?:旗下|所属|独资|控股)\s*([A-Za-z0-9\u4e00-\u9fa5]{2,20})",
         ]
         for p in patterns:
             matches = re.findall(p, text)

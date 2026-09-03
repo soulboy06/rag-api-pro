@@ -208,20 +208,33 @@ class RAGService:
                 page_str = f" (第{c.page_number}页)" if c.page_number else ""
                 context_parts.append(f"[{c.filename}{page_str}#chunk_{c.chunk_index}]: {c.content}")
 
-        # 2. LOCAL: Graph Subgraph Neighborhood Traversal Only
+        # 2. LOCAL: Graph Subgraph Neighborhood Traversal with Grounded Sources
         elif mode == "local":
             entities, relations = await GraphRAGEngine.retrieve_local_subgraph(
                 tenant_id, kb_id, query, limit=15, active_generations=active_generations
             )
+            sources = await GraphRAGEngine.retrieve_vector_chunks(
+                tenant_id, kb_id, query_vec, top_k, score_threshold, active_generations
+            )
+            for c in sources:
+                page_str = f" (第{c.page_number}页)" if c.page_number else ""
+                context_parts.append(f"[{c.filename}{page_str}#chunk_{c.chunk_index}]: {c.content}")
             if relations:
                 context_parts.append("【局部实体关系子图】:\n" + "\n".join(relations))
 
-        # 3. GLOBAL: Community Summaries Only
+        # 3. GLOBAL: Community Summaries with Key Document Context
         elif mode == "global":
             communities = await GraphRAGEngine.retrieve_global_communities(
                 tenant_id, kb_id, limit=5, active_generations=active_generations
             )
-            context_parts.append("【知识图谱全局社区主题摘要】:\n" + "\n".join(communities))
+            sources = await GraphRAGEngine.retrieve_vector_chunks(
+                tenant_id, kb_id, query_vec, top_k, score_threshold, active_generations
+            )
+            for c in sources:
+                page_str = f" (第{c.page_number}页)" if c.page_number else ""
+                context_parts.append(f"[{c.filename}{page_str}#chunk_{c.chunk_index}]: {c.content}")
+            if communities:
+                context_parts.append("【知识图谱全局社区主题摘要】:\n" + "\n".join(communities))
 
         # 4. HYBRID: Tri-Hybrid (Dense Vector + Sparse Keywords + Local Graph + RRF)
         elif mode == "hybrid":
