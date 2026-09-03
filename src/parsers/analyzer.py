@@ -62,10 +62,13 @@ class DocumentAnalyzer:
             # they can overcount shared PDF resources and cannot distinguish a
             # page with a text layer from an image-only page.
             pdf_doc = None
+            total_tables = 0
+            pages_with_tables = 0
+            max_table_area_ratio = 0.0
             try:
-                import fitz
+                import pymupdf
 
-                pdf_doc = fitz.open(stream=file_bytes, filetype="pdf")
+                pdf_doc = pymupdf.open(stream=file_bytes, filetype="pdf")
                 page_count = max(1, len(pdf_doc))
                 pages_with_text = 0
                 for pdf_page in pdf_doc:
@@ -74,7 +77,24 @@ class DocumentAnalyzer:
                         pages_with_text += 1
                     image_count += len(pdf_page.get_images(full=True))
                     formula_count += len(cls.FORMULA_REGEX.findall(page_text))
-                    table_count += len(re.findall(r"\n\|[-: |]+\|\n", page_text))
+                    
+                    # Lightweight vector table detection via PyMuPDF TableFinder
+                    try:
+                        page_area = float(pdf_page.rect.width * pdf_page.rect.height)
+                        finder = pdf_page.find_tables()
+                        if finder.tables:
+                            page_table_count = len(finder.tables)
+                            total_tables += page_table_count
+                            pages_with_tables += 1
+                            page_table_area = 0.0
+                            for table in finder.tables:
+                                x0, y0, x1, y1 = table.bbox
+                                page_table_area += max(0.0, x1 - x0) * max(0.0, y1 - y0)
+                            ratio = min(1.0, page_table_area / page_area) if page_area > 0 else 0.0
+                            if ratio > max_table_area_ratio:
+                                max_table_area_ratio = ratio
+                    except Exception:
+                        pass
                 has_text_layer = pages_with_text > 0
             except Exception:
                 # Optional inspection dependency failed; retain byte-level
@@ -97,18 +117,27 @@ class DocumentAnalyzer:
 
             features.page_count = page_count
             features.image_count = image_count
+            features.table_count = total_tables
             features.has_scanned_pages = not has_text_layer
 
-            # Calculate complexity
+            # Calculate complexity score with table awareness
+            table_page_ratio = (pages_with_tables / page_count) if page_count > 0 else 0.0
             if not has_text_layer:
                 score = 70.0  # Scanned PDF requires OCR/VLM
+            elif max_table_area_ratio >= 0.4 or table_page_ratio >= 0.5:
+                # Dense table layout: substantial tables across the document
+                score = 60.0
+            elif max_table_area_ratio >= 0.1 or pages_with_tables > 0:
+                # Moderate table presence
+                score = 35.0
             elif image_count > 0:
                 score = 20.0 + min(40.0, image_count * 5.0)  # Visual/Hybrid PDF
             else:
                 score = 5.0  # Pure native text PDF -> Fast PyMuPDF extraction
 
             reason = (
-                f"PDF with {page_count} pages, {image_count} images, "
+                f"PDF with {page_count} pages, {total_tables} tables (max area {max_table_area_ratio*100:.1f}%, "
+                f"{pages_with_tables}/{page_count} pages), {image_count} images, "
                 f"text_layer={'present' if has_text_layer else 'scanned'}"
             )
             return features, min(100.0, round(score, 2)), reason
